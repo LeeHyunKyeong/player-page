@@ -7,18 +7,13 @@ import { useState, useEffect, useRef } from 'react';
 import * as Font from 'expo-font';
 import * as Speech from 'expo-speech';
 
-interface TextSegment {
-  text: string;
-}
-
 export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [author, setAuthor] = useState<string | null>(null);
   const [workTitle, setWorkTitle] = useState<string | null>(null);
-  const [segments, setSegments] = useState<TextSegment[]>([]);
+  const [segments, setSegments] = useState<[string, string][]>([]);
   const [currentSegment, setCurrentSegment] = useState(0);
   const [segmentHeights, setSegmentHeights] = useState<number[]>([]); // 각 문단의 높이를 저장할 배열
-
   const [isPlaying, setIsPlaying] = useState(false);
   const [rateIndex, setRateIndex] = useState(0);
   const playbackRates = [1, 1.1, 1.2, 1.3, 1.4];
@@ -81,71 +76,77 @@ export default function App() {
     const appreciationPoint = artworkData.appreciationPoint;
     const history = artworkData.history;
 
-    const text = `
-    작품소개
-    ${workIntro}
-    작가소개
-    ${authorIntro}
-    작품배경
-    ${workBackground}
-    감상포인트
-    ${appreciationPoint}
-    미술사
-    ${history}
-    `
-
-    // 문단 단위로 나누고 배열로 변환
-    const segments = text
-      .split(/\n+/) // 줄 바꿈을 기준으로 나누기 (한 문단씩 처리)
-      .map((sentence): { text: string } => ({
-        text: sentence.trim(),
-      }))
-      .filter((segment) => segment.text); //빈 문장은 필터링
+    // 배열 형식으로 저장
+    const segments: [string, string][] = [
+      ["작품소개", workIntro],
+      ["작가소개", authorIntro],
+      ["작품배경", workBackground],
+      ["감상포인트", appreciationPoint],
+      ["미술사", history],
+    ];
 
     setSegments(segments);
   }, [artworkData]);
 
-  const playSegmentFromIndex = (index: number) => {
-    if (index < segments.length) {
-      Speech.speak(segments[index].text, {
-        rate: currentRate,
-        onDone: () => {
-          setIsPlaying(false);
-          playSegmentFromIndex(index + 1);
-        },
-      });
-      setCurrentSegment(index);  //현재 문단 번호를 업데이트
-    } else {
-      setIsPlaying(false);  //더 이상 문단이 없으면 재생 상태를 false로 설정
-    }
-  };
-
-  const handleSegmentClick = (index: number) => {
-    setCurrentSegment(index);
-    if (isPlaying) { //재생중이었다
-      Speech.stop(); //멈추고
-      playSegmentFromIndex(index);
-    } else { //재생중이 아니었다
-      playSegmentFromIndex(index);
-      setIsPlaying(true);
-    }
-  };
+  const [lastBoundaryEvent, setLastBoundaryEvent] = useState({ charIndex: 0 });
+  const [slicedText, setSlicedText] = useState(""); // 상태로 slicedText 관리
+  const [isStopped, setIsStopped] = useState(false);
 
   const handlePlayPause = () => {
-    //처음에 isplaying=false
     if (isPlaying) {
+      // 재생 중이라면 멈춤
+      setIsStopped(true); // 멈춤 상태로 설정
       Speech.stop();
       setIsPlaying(false);
-    } 
-    else { //false일 때
-      playSegmentFromIndex(currentSegment);
+    } else {
       setIsPlaying(true);
+      setIsStopped(false); // 재생 중 상태로 설정
+  
+      let currentText = slicedText;
+      if (!currentText) {
+        // 처음 시작 시 원본 텍스트로 초기화
+        currentText = segments[currentSegment][1]; // 현재 문단 텍스트
+        setSlicedText(currentText);
+      }
+  
+      const nextText = currentText.slice(lastBoundaryEvent.charIndex); // 멈춘 위치 이후부터 재생
+  
+      Speech.speak(nextText, {
+        rate: currentRate,
+        onBoundary: (boundaryEvent: any) => {
+          // 현재 읽고 있는 위치 업데이트
+          setLastBoundaryEvent({
+            charIndex: lastBoundaryEvent.charIndex + boundaryEvent.charIndex, // 시작점 보정
+          });
+        },
+        onDone: () => {
+          // 재생이 완료된 경우에만 실행
+          if (!isStopped) {
+            console.log("음성 재생 완료");
+            if (currentSegment < segments.length - 1) {
+              setCurrentSegment((prev) => prev + 1); // 다음 문단으로 이동
+              setLastBoundaryEvent({ charIndex: 0 }); // 새 문단 시작점으로 초기화
+            } else {
+              setIsPlaying(false);
+              console.log("모든 문단 재생 완료");
+            }
+          }
+        },
+      });
     }
   };
-
+  
   const togglePlaybackRate = () => {
+    // 배속을 변경하고 바로 적용
     const nextIndex = (rateIndex + 1) % playbackRates.length;
     setRateIndex(nextIndex);
+  
+    // 재생 중일 경우 배속을 즉시 변경하여 새로 시작하도록 함
+    if (isPlaying) {
+      // 현재 텍스트를 멈추고 배속을 새로 적용하여 재생
+      Speech.stop(); // 음성 멈추기
+      handlePlayPause(); // 변경된 배속으로 텍스트 다시 읽기
+    }
   };
 
   return (
@@ -159,21 +160,23 @@ export default function App() {
         //   { useNativeDriver: false, listener: onScroll }
         // )}
       >
-        {segments.map((segment, index) => (
+      {segments.map(([title, content], index) => (
           <Text
             key={index}
             onLayout={(event) => onLayout(event, index)}
-            onPress={() => handleSegmentClick(index)} //문단 클릭 시 해당 문단으로 이동
+            onPress={() => setCurrentSegment(index)} // 클릭 시 해당 문단으로 이동
             style={[
               styles.segment,
               highlighted
                 ? index === currentSegment
-                  ? styles.nonHighlightedText
-                  : styles.highlightedText
-                : styles.nonHighlightedText,
+                  ? styles.highlightedText // 하이라이트 활성화 상태에서 현재 문단
+                  : styles.nonHighlightedText // 하이라이트 활성화 상태에서 나머지 문단
+                : styles.highlightedText, // 하이라이트 비활성화 시 모든 문단 흰색
             ]}
           >
-            {segment.text}
+            <Text>{title}</Text>
+            {"\n"}
+            <Text>{content}</Text>
           </Text>
         ))}
         <View onLayout={onLastViewLayout} style={{ height: 150 }} />
@@ -213,10 +216,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     lineHeight: 30,
   },
-  nonHighlightedText: {
+  highlightedText: {
     color: '#FFFFFF',
   },
-  highlightedText: {
+  nonHighlightedText: {
     color: '#495057',
   },
   fixedButtonsContainer: {
