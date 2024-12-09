@@ -90,47 +90,37 @@ export default function App() {
 
   const [lastBoundaryEvent, setLastBoundaryEvent] = useState({ charIndex: 0 });
   const [slicedText, setSlicedText] = useState(""); // 상태로 slicedText 관리
-  const [isStopped, setIsStopped] = useState(false);
 
   const handlePlayPause = () => {
     if (isPlaying) {
-      // 재생 중이라면 멈춤
-      setIsStopped(true); // 멈춤 상태로 설정
-      Speech.stop();
+      // 음성을 멈추고
+      Speech.stop(); 
       setIsPlaying(false);
     } else {
       setIsPlaying(true);
-      setIsStopped(false); // 재생 중 상태로 설정
-  
+      
       let currentText = slicedText;
       if (!currentText) {
         // 처음 시작 시 원본 텍스트로 초기화
-        currentText = segments[currentSegment][1]; // 현재 문단 텍스트
+        currentText = segments[0][1];
         setSlicedText(currentText);
       }
+
+      const nextText = currentText.slice(lastBoundaryEvent.charIndex);
+      console.log(`재생 텍스트: ${nextText}`);
   
-      const nextText = currentText.slice(lastBoundaryEvent.charIndex); // 멈춘 위치 이후부터 재생
-  
+      // Speech를 중지하고 새 배속을 적용하여 바로 재생
       Speech.speak(nextText, {
-        rate: currentRate,
+        rate: currentRate, // 새로운 배속으로 시작
         onBoundary: (boundaryEvent: any) => {
           // 현재 읽고 있는 위치 업데이트
           setLastBoundaryEvent({
-            charIndex: lastBoundaryEvent.charIndex + boundaryEvent.charIndex, // 시작점 보정
+            charIndex: lastBoundaryEvent.charIndex + boundaryEvent.charIndex,
           });
         },
         onDone: () => {
-          // 재생이 완료된 경우에만 실행
-          if (!isStopped) {
-            console.log("음성 재생 완료");
-            if (currentSegment < segments.length - 1) {
-              setCurrentSegment((prev) => prev + 1); // 다음 문단으로 이동
-              setLastBoundaryEvent({ charIndex: 0 }); // 새 문단 시작점으로 초기화
-            } else {
-              setIsPlaying(false);
-              console.log("모든 문단 재생 완료");
-            }
-          }
+          setIsPlaying(false);
+          console.log("음성 재생 완료");
         },
       });
     }
