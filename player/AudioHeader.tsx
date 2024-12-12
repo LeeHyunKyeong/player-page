@@ -1,14 +1,12 @@
 import React from 'react';
 import { View, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { getStatusBarHeight } from 'react-native-status-bar-height';
 
 const AudioHeader: React.FC = () => {
-
   const handleGoHome = () => {
   };
 
   return (
-    <View>
+    <View style={{ height: 64 }}>
       <TouchableOpacity style={styles.button} onPress={handleGoHome}>
         <Image source={require('../assets/docent_logo.png')} style={styles.logo} />
       </TouchableOpacity>

@@ -6,6 +6,8 @@ import artworkData from './artworkdata.json';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Font from 'expo-font';
 import * as Speech from 'expo-speech';
+import { LinearGradient } from 'expo-linear-gradient';
+import { getStatusBarHeight } from 'react-native-status-bar-height';
 
 export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -28,6 +30,7 @@ export default function App() {
   const [history, setHistory] = useState<string | null>();
   const [lastBoundaryEvent, setLastBoundaryEvent] = useState({ charIndex: 0 });
   const [slicedText, setSlicedText] = useState<string | null>();
+  const [position, setPosition] = useState(0); //스크롤 위치를 추적
 
   useEffect(() => {
     async function loadFonts() {
@@ -49,7 +52,6 @@ export default function App() {
     setAppreciationPoint(artworkData.appreciationPoint);
     setHistory(artworkData.history);
 
-    // 배열 생성 시 기본값 처리
     const segments: [string, string][] = [
         ["작품소개", artworkData.workIntro],
         ["작가소개", artworkData.authorIntro],
@@ -63,19 +65,15 @@ export default function App() {
 
   useEffect(() => {
     console.log("인덱스 바뀜",currentSegmentIndex)
+    setLastBoundaryEvent({
+      charIndex: 0,
+    });
     Speech.stop();
+
     if (scrollViewRef.current && segmentHeights[currentSegmentIndex] !== undefined) {
       const yOffset = segmentHeights.slice(0, currentSegmentIndex).reduce((acc, height) => acc + height, 0);
       scrollViewRef.current.scrollTo({ y: yOffset - 80, animated: true });
     }
-
-    const newText = segments
-    .slice(currentSegmentIndex)
-    .map(([title, content]) => `${title} ${content?.trim() || ""}`)
-    .join("");
-
-    setSlicedText(newText);
-    setLastBoundaryEvent({ charIndex: 0 });
   }, [currentSegmentIndex, segmentHeights]);
 
   // 각 문단의 레이아웃을 측정해서 높이를 저장하는 함수
@@ -98,38 +96,25 @@ export default function App() {
     });
   };
 
-  // const scrolling = useRef(new Animated.Value(0)).current;
-  // const onScroll = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
-  //   const position = e.nativeEvent.contentOffset.y;
-  //   scrolling.setValue(position);
-  //   console.log('Scroll Position:', position);
-  // };
-
-  const segmentLengths = segments.map(([title, content]) => {
-    const segmentText = `${title} ${content}`;
-    return {
-      title,
-      length: segmentText.length,
-    };
-  });
+  const scrolling = useRef(new Animated.Value(0)).current;
+  const onScroll = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const position = e.nativeEvent.contentOffset.y;
+    setPosition(position);
+    //console.log('Scroll Position:', position);
+  };
 
   const handlePlayPause = () => {
     if (isPlaying) {
-      // 음성을 멈추고
       Speech.stop(); 
       setIsPlaying(false);
     } else {
       setIsPlaying(true);
 
-      let currentText = slicedText;
-        if (!currentText) {
-          // slicedText가 없으면 전체 텍스트로 초기화
-          currentText = segments.map(([title, content]) => `${title} ${content}`).join("");
-          setSlicedText(currentText); // 초기화된 텍스트 저장
-        }
+      let currentText = segments[currentSegmentIndex][1]; // 현재 세그먼트의 텍스트를 가져옴
+      setSlicedText(currentText);
       const startIndex = lastBoundaryEvent.charIndex; // 현재 slicedText에서 멈춘 위치 이후로 자르기
-      const nextText = currentText.slice(startIndex);
-      
+      const nextText = currentText.slice(lastBoundaryEvent.charIndex);
+
       Speech.speak(nextText, {
         rate: currentRate,
         onBoundary: (boundaryEvent: any) => {
@@ -157,13 +142,22 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <AudioHeader />
+      {position > 0 && (
+        <View style={styles.gradientContainer}>
+          <LinearGradient
+            colors={['#0C0D0F', 'rgba(12, 13, 15, 0)']} // 위는 불투명, 아래는 투명
+            style={styles.gradient}
+            pointerEvents="none" // 상호작용 방지
+          />
+        </View>
+      )}
       <Animated.ScrollView
         ref={scrollViewRef}
-        // scrollEventThrottle={500}
-        // onScroll={Animated.event(
-        //   [{ nativeEvent: { contentOffset: { y: scrolling } } }],
-        //   { useNativeDriver: false, listener: onScroll }
-        // )}
+        scrollEventThrottle={400}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrolling } } }],
+          { useNativeDriver: false, listener: onScroll }
+        )}
       >
       {segments.map(([title, content], index) => (
           <Text
@@ -211,6 +205,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0C0D0F',
+  },
+  gradientContainer: {
+    position: 'absolute',
+    top: getStatusBarHeight()+64,
+    left: 0,
+    right: 0,
+    height: 150, //흐려지는 영역의 높이
+    zIndex: 1,
+  },
+  gradient: {
+    flex: 1,
   },
   segment: {
     fontSize: 20,
