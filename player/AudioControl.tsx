@@ -4,9 +4,6 @@ import * as Font from 'expo-font';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
 interface AudioControlProps {
-  currentSegment: number;
-  segmentsLength: number;
-  handleScrollChange: (value: number) => void;
   workTitle: string | null;
   author: string | null;
   isPlaying: boolean;
@@ -14,9 +11,6 @@ interface AudioControlProps {
 }
 
 const AudioControl: React.FC<AudioControlProps> = ({
-  currentSegment,
-  segmentsLength,
-  handleScrollChange,
   workTitle,
   author,
   isPlaying,
