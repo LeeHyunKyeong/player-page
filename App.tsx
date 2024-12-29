@@ -2,17 +2,24 @@ import { StyleSheet, Text, View, ScrollView, Button, SafeAreaView, Animated } fr
 import AudioHeader from './player/AudioHeader';
 import AudioControl from './player/AudioControl';
 import ThreeButtons from './player/ThreeButtons';
+import FirstModal from './player/FirstModal';
 import artworkData from './artworkdata.json';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Font from 'expo-font';
 import * as Speech from 'expo-speech';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getStatusBarHeight } from 'react-native-status-bar-height';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [author, setAuthor] = useState<string | null>(null);
   const [workTitle, setWorkTitle] = useState<string | null>(null);
+  const [workIntro, setWorkIntro] = useState<string | null>();
+  const [authorIntro, setAuthorIntro] = useState<string | null>();
+  const [workBackground, setWorkBackground] = useState<string | null>();
+  const [appreciationPoint, setAppreciationPoint] = useState<string | null>();
+  const [history, setHistory] = useState<string | null>();
   const [segments, setSegments] = useState<[string, string][]>([]);
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [segmentHeights, setSegmentHeights] = useState<number[]>([]); // 각 문단의 높이를 저장할 배열
@@ -23,14 +30,37 @@ export default function App() {
   const currentRate = playbackRates[rateIndex]; 
   const [highlighted, setHighlighted] = useState(true);
   const scrollViewRef = useRef<ScrollView | null>(null);
-  const [workIntro, setWorkIntro] = useState<string | null>();
-  const [authorIntro, setAuthorIntro] = useState<string | null>();
-  const [workBackground, setWorkBackground] = useState<string | null>();
-  const [appreciationPoint, setAppreciationPoint] = useState<string | null>();
-  const [history, setHistory] = useState<string | null>();
   const [lastBoundaryEvent, setLastBoundaryEvent] = useState({ charIndex: 0 });
   const [slicedText, setSlicedText] = useState<string | null>();
-  const [position, setPosition] = useState(0); //스크롤 위치를 추적
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hasSeenModal, setHasSeenModal] = useState(false); //최초 모달 1회 확인 여부
+
+  const clearModalStatus = async () => {
+    try {
+      await AsyncStorage.removeItem('hasSeenModal');
+      console.log('Modal status cleared.');
+      setHasSeenModal(false); //상태도 초기화
+    } catch (error) {
+      console.error('Error clearing modal status:', error);
+    }
+  };
+
+  useEffect(() => {
+    const checkModalStatus = async () => {
+      try {
+        const seenModal = await AsyncStorage.getItem('hasSeenModal');
+        if (seenModal === null) {
+          setHasSeenModal(false); //최초 실행
+        } else {
+          setHasSeenModal(true); //이미 본 적 있음
+        }
+      } catch (error) {
+        console.error('Error checking modal status:', error);
+      }
+    };
+
+    checkModalStatus();
+  }, []);
 
   useEffect(() => {
     async function loadFonts() {
@@ -97,13 +127,22 @@ export default function App() {
   };
 
   const scrolling = useRef(new Animated.Value(0)).current;
+  const [position, setPosition] = useState(0);
+  
   const onScroll = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
     const position = e.nativeEvent.contentOffset.y;
     setPosition(position);
     //console.log('Scroll Position:', position);
   };
 
-  const handlePlayPause = () => {
+  const handlePlayPause  = async () => {
+    if (!hasSeenModal) {
+      setIsModalOpen(true);
+      await AsyncStorage.setItem('hasSeenModal', 'true'); // 모달 본 적 있음 저장
+      setHasSeenModal(true);
+      return;
+    }
+
     if (isPlaying) {
       Speech.stop(); 
       setIsPlaying(false);
@@ -179,6 +218,7 @@ export default function App() {
           </Text>
         ))}
         <View onLayout={onLastViewLayout} style={{ height: 150 }} />
+        <Button title="Reset Modal Status" onPress={clearModalStatus} />
       </Animated.ScrollView>
 
       <View style={styles.fixedButtonsContainer}>
@@ -188,15 +228,22 @@ export default function App() {
           togglePlaybackRate={togglePlaybackRate}
           rateIndex={rateIndex}
           displayRates={displayRates}
+          position={scrolling}
         />
       </View>
-
       <AudioControl
         workTitle={workTitle}
         author={author}
         isPlaying={isPlaying}
         handlePlayPause={handlePlayPause}
       />
+
+      {isModalOpen && (
+        <FirstModal
+          onClose={() => setIsModalOpen(false)}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      )}
     </SafeAreaView>
   );
 };
