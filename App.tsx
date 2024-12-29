@@ -35,15 +35,15 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hasSeenModal, setHasSeenModal] = useState(false); //최초 모달 1회 확인 여부
 
-  const clearModalStatus = async () => {
-    try {
-      await AsyncStorage.removeItem('hasSeenModal');
-      console.log('Modal status cleared.');
-      setHasSeenModal(false); //상태도 초기화
-    } catch (error) {
-      console.error('Error clearing modal status:', error);
-    }
-  };
+  // const clearModalStatus = async () => {
+  //   try {
+  //     await AsyncStorage.removeItem('hasSeenModal');
+  //     console.log('Modal status cleared.');
+  //     setHasSeenModal(false); //상태도 초기화
+  //   } catch (error) {
+  //     console.error('Error clearing modal status:', error);
+  //   }
+  // };
 
   useEffect(() => {
     const checkModalStatus = async () => {
@@ -218,7 +218,7 @@ export default function App() {
           </Text>
         ))}
         <View onLayout={onLastViewLayout} style={{ height: 150 }} />
-        <Button title="Reset Modal Status" onPress={clearModalStatus} />
+        {/* <Button title="Reset Modal Status" onPress={clearModalStatus} /> */}
       </Animated.ScrollView>
 
       <View style={styles.fixedButtonsContainer}>
