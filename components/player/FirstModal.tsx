@@ -1,7 +1,5 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useState, useEffect } from 'react';
-import * as Font from 'expo-font';
 
 interface FirstModalProps {
   onClose: () => void;
@@ -9,19 +7,6 @@ interface FirstModalProps {
 }
 
 const FirstModal: React.FC<FirstModalProps> = ({ onClose, onCancel }) => {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-
-  useEffect(() => {
-    async function loadFonts() {
-      await Font.loadAsync({
-        wantedSansRegular: require('../assets/font/WantedSans-Regular.ttf'),
-        wantedSansSemiBold: require('../assets/font/WantedSans-SemiBold.ttf'),
-      });
-      setFontsLoaded(true);
-    }
-
-    loadFonts();
-  }, []);
 
   return (
     <Modal
@@ -63,8 +48,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontFamily: 'wantedSansSemiBold',
-    fontWeight: 'semibold',
+    fontFamily: 'wantedSansBold',
+    fontWeight: 'bold',
     marginBottom: 10,
     color: 'white',
   },

@@ -8,7 +8,7 @@ const AudioHeader: React.FC = () => {
   return (
     <View style={{ height: 64 }}>
       <TouchableOpacity style={styles.button} onPress={handleGoHome}>
-        <Image source={require('../assets/docent_logo.png')} style={styles.logo} />
+        <Image source={require('../../assets/docent_logo.png')} style={styles.logo} />
       </TouchableOpacity>
     </View>
   );

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Button } from 'react-native';
-import * as Font from 'expo-font';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
 interface AudioControlProps {
@@ -16,19 +15,6 @@ const AudioControl: React.FC<AudioControlProps> = ({
   isPlaying,
   handlePlayPause,
 }) => {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-
-  useEffect(() => {
-    async function loadFonts() {
-      await Font.loadAsync({
-        'wantedSansBold': require('../assets/font/WantedSans-Bold.ttf'),
-      });
-      setFontsLoaded(true);
-    }
-
-    loadFonts();
-  }, []);
-
   return (
     <View style={styles.container}>
       <View style={styles.infoContainer}>
